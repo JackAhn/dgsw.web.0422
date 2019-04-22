@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script
+            src="https://code.jquery.com/jquery-3.4.0.js"
+            integrity="sha256-DYZMCC8HTC+QDr5QNaIcfR7VSPtcISykd+6eSmBW5qo="
+            crossorigin="anonymous"></script>
+</head>
+<body onload="fetchPostList()">
+<div style="display: flex;">
+    <div style="width: 100px;">ID</div>
+    <input type="text" id="loginid">
+</div>
+<div style="display: flex;">
+    <div style="width: 100px;">PASSWORD</div>
+    <input type="password" id="loginpw">
+</div>
+<div>
+    <button onclick="chkLogin()">로그인</button>
+    <button onclick="setRegisForm()">회원가입</button>
+</div>
+<div style="display: flex;">
+    <div style="width: 100px;">ID</div>
+    <div id="newid" style="width: 100px;"></div>
+</div>
+<div style="display: flex;">
+    <div style="width: 100px;">PASSWORD</div>
+    <div id="newpw" style="width: 100px;"></div>
+</div>
+<div style="display: flex;">
+    <div style="width: 100px;">Username</div>
+    <div id="newusername" style="width: 100px;"></div>
+</div>
+<div style="display: flex;">
+    <div style="width: 100px;">Email</div>
+    <div id="newemail" style="width: 100px;"></div>
+</div>
+<div>
+    <button id="bottombtn1" onclick="bottomButton1()">수정</button>
+    <button id="bottombtn2" onclick="bottomButton2()">삭제</button>
+</div>
+<div style="display: flex;">
+    <input type="file" id="postimg">
+    <input type="text" id="postcontent">
+    <button id="regispostbtn" onclick="saveNewPost()">등록</button>
+    <button id="regismodifybtn" style="display: none;" onclick="setmodifyPost()">수정</button>
+</div>
+<div id="postlist">
+
+</div>
+<div id="settext1" style="display: none;">
+    <input type="text" id="setid">
+</div>
+<div id="settext2" style="display: none;">
+    <input type="password" id="setpw">
+</div>
+<div id="settext3" style="display: none;">
+    <input type="text" id="setusername">
+</div>
+<div id="settext4" style="display: none;">
+    <input type="text" id="setemail">
+</div>
+<script>
+    let userid = null;
+
+    function addAutoBox(){
+        let data = ["newid", "newpw", "newusername", "newemail"];
+        for(let i=0;i<4;i++){
+            let div = document.getElementById('settext'+(i+1));
+
+            document.getElementById(data[i]).innerHTML = div.innerHTML;
+        }
+    }
+    function removeAutoBox(){
+        let data = ["newid", "newpw", "newusername", "newemail"];
+        for(let i=0;i<4;i++){
+            document.getElementById(data[i]).innerHTML = "";
+        }
+    }
+    function setRegisForm(){
+        addAutoBox();
+        $('#bottombtn1').html("회원가입");
+        $('#bottombtn2').html("취소");
+    }
+    function setModifyForm(){
+        removeAutoBox();
+        $('#bottombtn1').html("수정");
+        $('#bottombtn2').html("삭제");
+    }
+    async function bottomButton1(){
+        let data = $('#bottombtn1').html();
+        let id = $('#setid').val().trim();
+        let pw = $('#setpw').val().trim();
+        let username = $('#setusername').val().trim();
+        let email = $('#setemail').val().trim();
+        if(id == "" || pw == "" || username == "" || email == ""){
+            alert("공백이 존재합니다.");
+            return;
+        }
+        let senddata = {"userid" : id, "password" : pw, "username" : username, "email" : email};
+        if(data == "회원가입"){
+            try{
+                let response = await $.get({
+                    url: '/regis',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(senddata)
+            });
+                if(response == 1){
+                    alert("아이디가 중복되었습니다.");
+                    return;
+                }
+                else if(response == 2){
+                    alert("이메일이 중복되었습니다.");
+                    return;
+                }
+                alert("회원가입이 완료되었습니다.");
+                setModifyForm();
+            }catch(err){
+                alert(JSON.stringify(err));
+            }
+        }
+        else if (data == "수정"){
+            try{
+                let response = await $.get({
+                    url: '/modify',
+                    type: 'PUT',
+                    data: JSON.stringify(senddata),
+                    contentType: 'application/json'
+                });
+                alert("수정되었습니다.\n재로그인을 해 주세요.");
+                userid = null;
+                setModifyForm();
+            }catch(err){
+                alert(JSON.stringify(err));
+            }
+        }
+    }
+    async function bottomButton2(){
+        let data = $('#bottombtn2').html();
+        if(data == "취소"){
+            setModifyForm();
+        }
+        else if (data == "삭제"){
+            let id = $('#setid').val().trim();
+            let response = await $.get({
+                url: '/delete/'+id,
+                type: 'DELETE',
+                success: function(response){
+                    alert('탈퇴가 완료되었습니다.');
+                    setModifyForm();
+                },
+                error:function(err){
+                    alert('에러 발생');
+                }
+            });
+        }
+    }
+    async function chkLogin(){
+        try{
+            let id = $('#loginid').val().trim();
+            let pw = $('#loginpw').val().trim();
+            if(id == "" || pw == ""){
+                alert("공백이 존재합니다.");
+                return;
+            }
+            let response = await $.get({
+                url: '/login/'+id+'/'+pw,
+                type: 'GET',
+                accept: 'application/json'
+            });
+            if(response === null || response === ""){
+                alert("아이디나 비밀번호가 일치하지 않습니다.");
+                return;
+            }
+            alert("로그인이 완료되었습니다.");
+            userid = response.id;
+            await addAutoBox();
+            $('#setid').val("");
+            $('#setpw').val("");
+            $('#setusername').val("");
+            $('#setemail').val("");
+
+
+            $('#setid').val(`${response.userid}`);
+            $('#setpw').val(`${response.password}`);
+            $('#setusername').val(`${response.username}`);
+            $('#setemail').val(`${response.email}`);
+        }catch(err){
+            alert(JSON.stringify(err));
+        }
+    }
+</script>
+<script>
+
+    let commentid = null;
+
+    function addPost(post){
+        $('#postlist').append(`<div id="line${post.id}" style="display: flex;border-bottom: 1px solid silver;"><div style="width: 150px;">${post.username}</div>
+        <div style="width: 350px;overflow: auto;">${post.content}<div><div><img id="img${post.id}" src="http://localhost:8080/attachment/${post.id}" style="width: 100px; height: 75px;">
+        <button onclick="modifyPost(${post.id})">수정</button>
+        <button onclick="deletePost(${post.id})">삭제</button></div></div>`);
+    }
+
+    async function fetchPostList(){
+        try {
+            $('#postlist').empty();
+            let response = await $.get('/postlist');
+            for (let i = response.length - 1; i >= 0; i--) {
+                let post = response[i];
+                addPost(post);
+            }
+        } catch (err) {
+            $('#postlist').html(err);
+        }
+    }
+
+    async function saveNewPost(){
+        if(userid == null || userid == ""){
+            alert("로그인을 해주세요.");
+            return;
+        }
+        let file = $('#postimg')[0].files[0];
+        let content = $('#postcontent').val();
+        if(file == "undefined" || file == null || content == ""){
+            alert('공백이 존재합니다.');
+            return;
+        }
+        let formdata = new FormData();
+        formdata.append("srcFile", file);
+        let response = await $.ajax({
+           type: 'POST',
+           url: '/attachment',
+           data: formdata,
+           contentType: false,
+           processData: false
+        });
+        let requestData = {
+            userId: userid,
+            content: $('#postcontent').val(),
+            storagePath: response.storagePath,
+            originalName: response.originalName
+        };
+        try{
+            let response = await $.ajax({
+               url: '/postadd',
+               type: 'POST',
+               contentType: 'application/json',
+               dataType: 'json',
+               data: JSON.stringify(requestData)
+            });
+            alert('추가되었습니다.');
+            $('#postcontent').val("");
+            $('#postimg').val("");
+            fetchPostList();
+        }catch(err){
+            console.log(err);
+        }
+    }
+
+    async function setmodifyPost(){
+        let file = $('#postimg')[0].files[0];
+        let content = $('#postcontent').val();
+        let path = null;
+        let name = null;
+        if(content == ""){
+            alert('공백이 존재합니다.');
+            return;
+        }
+        let formdata = new FormData();
+        formdata.append("srcFile", file);
+        let response;
+        if(typeof file == "undefined"){
+        }
+        else{
+            response = await $.ajax({
+                type: 'POST',
+                url: '/attachment',
+                data: formdata,
+                contentType: false,
+                processData: false
+            });
+            path = response.storagePath;
+            name = response.originalName;
+        }
+        let requestData = {
+            id: commentid,
+            userId: userid,
+            content: $('#postcontent').val(),
+            storagePath: path,
+            originalName: name
+        };
+        try{
+            let response = await $.ajax({
+                url: '/postmodify',
+                type: 'PUT',
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify(requestData)
+            });
+            alert('수정되었습니다.');
+            var time = new Date().getTime(); // 이미지 새로고침을 위한 랜덤 값
+            var src = 'http://localhost:8080/attachment/' + commentid + '?time=' + time;
+            $('#img' + commentid).attr('src', src);
+            $('#postcontent').val("");
+            $('#postimg').val("");
+            $('#regispostbtn').show();
+            $('#regismodifybtn').hide();
+            fetchPostList();
+        }catch(err){
+            console.log(JSON.stringify(err));
+        }
+    }
+
+    async function modifyPost(id){
+        if (userid === null || userid === "") {
+            alert('로그인 후 이용가능합니다.');
+            return;
+        }
+        let data = await $.get(`/postfind/${id}`);
+        if (`${data.userId}` != userid || data === null || data === "") {
+            alert('자신의 코멘트만 수정이 가능합니다.');
+            return;
+        }
+        let val = $('#regispostbtn').html();
+        if(val == "등록"){
+            commentid = id;
+            $('#regispostbtn').hide();
+            $('#regismodifybtn').show();
+            $('#postcontent').val(`${data.content}`);
+        }
+    }
+
+    async function deletePost(id) {
+        if (userid === null || userid === "") {
+            alert('로그인 후 이용가능합니다.');
+            openLoginDialog();
+            return;
+        }
+        let data = await $.get(`/postfind/${id}`);
+        if (`${data.userId}` != userid) {
+            alert('자신의 코멘트만 삭제가 가능합니다.');
+            return;
+        }
+        try {
+            let response = await $.ajax({
+                type: 'DELETE',
+                url: `/postdelete/${id}`
+            });
+            if (response === true) {
+                $(`#line${id}`).remove();
+                alert('삭제되었습니다.');
+            }
+        } catch (err) {
+            console.log(err);
+        }
+    }
+</script>
+</body>
+</html>
